@@ -1,14 +1,13 @@
 // ==UserScript==
 // @name         Pixiv Image Searches and Stuff
-// @namespace    https://github.com/fairingrey/userscripts
-// @description  Searches Danbooru for pixiv IDs and source mismatches, adds IQDB image search links, and filters images based on pixiv favorites. Heavily modified from Mango's script (also named Pixiv Image Searches and Stuff).
+// @description  Searches Danbooru for pixiv IDs and source mismatches, adds IQDB image search links, and filters images based on pixiv favorites.
 // @match        *://www.pixiv.net/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2018.10.02
+// @version      2018.10.27
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -30,11 +29,50 @@ var styleSourceBadRevision = "color:darkorange; font-weight: bold; font-style: i
 var styleSourceMissing = "color:red;";
 var sourceTimeout = 20; //seconds to wait before retrying query
 var maxAttempts = 10; //# of times to try a query before completely giving up on source searches
+var imageCheckPeriod = 1000; //Interval (in milliseconds) between each check for images on every page (except manga)
 var mangaCheckPeriod = 2000; //Interval (in milliseconds) between each check on manga images
 var thumbCheckPeriod = 1000; //Interval (in milliseconds) between each check on search/bookmark pages
 var pixivTransparentSrc = "https://s.pximg.net/www/images/common/transparent.gif";
 
 //////////////////////////////////////////////////////////////////////////////////////
+
+const xsearchselectors = [
+    "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@class,'js-lazyload') and not(@pisas)]",
+    "descendant-or-self::div/a[contains(@href,'mode=medium')]//img[not(@pisas)]",
+    "descendant-or-self::div[@role='presentation']/a/img[not(@pisas)]",
+    "descendant-or-self::div/a[contains(@href,'mode=medium')]/div/div[contains(@style,'background-image') and not(@pisas)]",
+    "descendant-or-self::div/a[contains(@class,'gtm-illust-recommend-thumbnail-link') and contains(@href,'mode=medium')]/div/div[contains(@style,'background-image') and not(@pisas)]",
+    "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@class,'lazyloaded') and not(@pisas)]",
+    "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@style,'background-image') and not(@pisas)]"
+];
+
+const pageselectors = [
+    {
+        regex: /\/member\.php/,
+        selectors: [3]
+    },{
+        regex: /\/member_illust\.php\?id=/,
+        selectors: [3]
+    },{
+        regex: /\/bookmark\.php/,
+        selectors: [3]
+    },{
+        regex: /\/member_illust\.php\?mode=medium/,
+        selectors: [2,4]
+    },{
+        regex: /\/search\.php\?.*?word=/,
+        selectors: [0,5,6]
+    },{
+        regex: /\/bookmark_new_illust\.php/,
+        selectors: [0,5,6]
+    },{
+        regex: /\/discovery/,
+        selectors: [0,5]
+    },{
+        regex: /\/stacc/,
+        selectors: [1]
+    }
+];
 
 var minFavs = 0,
     anyBookmarks = false,
@@ -53,14 +91,16 @@ if (typeof (GM_getValue) == "undefined" || !GM_getValue('a', 'b')) {
     };
 }
 
-if (typeof (custom) != "undefined")
+if (typeof (custom) != "undefined") {
     custom();
+}
 
 var mangaSeenlist = [];
 
 //Source search requires GM_xmlhttpRequest()
-if (addSourceSearch && typeof (GM_xmlhttpRequest) == "undefined")
+if (addSourceSearch && typeof (GM_xmlhttpRequest) == "undefined") {
     addSourceSearch = false;
+}
 
 //Manga images have to be handled specially
 if (location.search.indexOf("mode=manga") >= 0) {
@@ -73,14 +113,12 @@ if (location.search.indexOf("mode=manga") >= 0) {
         anyBookmarks = true;
 
         //Load "minFavs" setting
-        if (GM_getValue("minFavs"))
+        if (GM_getValue("minFavs")) {
             minFavs = parseInt(GM_getValue("minFavs"));
+        }
 
-        debuglog("minFavs:", minFavs);
+        debuglog("minFavs:",minFavs);
         //Set option
-        /*
-        addSearch = addSearch.parentNode.parentNode;
-        */
         var favTr = document.createElement("tr");
         favTr.style.display = "none";
         favTr.appendChild(document.createElement("th")).textContent = "Minimum favorites (script)";
@@ -88,18 +126,19 @@ if (location.search.indexOf("mode=manga") >= 0) {
         favInput.type = "text";
         favInput.value = "" + minFavs;
         favInput.addEventListener("input", function () {
-            if (/^ *\d+ *$/.test(this.value) && (minFavs = parseInt(this.value, 10)) > 0)
+            if (/^ *\d+ *$/.test(this.value) && (minFavs = parseInt(this.value, 10)) > 0) {
                 GM_setValue("minFavs", "" + minFavs);
-            else {
+            } else {
                 GM_deleteValue("minFavs");
                 minFavs = 0;
             }
 
             for (let i = 0; i < favList.length; i++) {
-                if (favList[i].favcount < minFavs)
+                if (favList[i].favcount < minFavs) {
                     favList[i].thumb.style.display = "none";
-                else
+                } else {
                     favList[i].thumb.style.removeProperty("display");
+                }
             }
         }, true);
         addSearch.parentNode.insertBefore(favTr, addSearch);
@@ -114,17 +153,7 @@ if (location.search.indexOf("mode=manga") >= 0) {
     }
     document.getElementsByTagName('head')[0].appendChild(style);
 
-    processThumbs([document]);
-
-    //Monitor for changes caused by other scripts
-    new MutationObserver(function (mutationSet) {
-        mutationSet.forEach(function (mutation) {
-            processThumbs(mutation.addedNodes);
-        });
-    }).observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+    setInterval(()=>{processThumbs([document]);},imageCheckPeriod);
 }
 
 //====================================== Functions ======================================
@@ -206,12 +235,13 @@ async function asyncProcessThumbs() {
         for (let i = 0; i < thumbSearch.length; i++) {
             var thumbImg = thumbSearch[i];
             var thumbPage = thumbImg.parentNode;
+            var thumbCont;
             if (location.pathname.includes("/member_illust.php") && location.search.search('/?mode=medium') > 0) {
-                var thumbCont = thumbPage.parentNode;
+                thumbCont = thumbPage.parentNode;
             } else if (location.pathname.includes("/member.php") || location.pathname.includes("/member_illust.php")) {
-                var thumbCont = thumbPage.parentNode.parentNode;
+                thumbCont = thumbPage.parentNode.parentNode;
             } else {
-                var thumbCont = thumbPage.parentNode.parentNode.parentNode;
+                thumbCont = thumbPage.parentNode.parentNode.parentNode;
             }
             var sourceContainer = thumbCont;
 
@@ -241,23 +271,23 @@ async function asyncProcessThumbs() {
                 }
             } else {
                 //Dummy div to force new line when needed
-                var dummydiv = document.createElement("div");
+               var dummydiv = document.createElement("div");
                 dummydiv.style.justifyContent = 'center';
                 dummydiv.style.display = 'flex';
                 dummydiv.className = 'pisas-dummydiv';
                 thumbCont.appendChild(dummydiv);
                 sourceContainer = dummydiv;
                 if (iqdbURL && addIQDBSearch) {
-                    //Thumb doesn't have bookmark info.  Add a fake bookmark link to link with the IQDB.
-                    bookmarkLink = document.createElement("a");
-                    bookmarkLink.className = "bookmark-count search-link";
-                    if (anyBookmarks) {
-                        bookmarkLink.className += " ui-tooltip";
-                        bookmarkLink.setAttribute("data-tooltip", "0 bookmarks");
-                    }
-                    //Append IQDB links inside dummy div
-                    dummydiv.appendChild(bookmarkLink);
-                    dummydiv.appendChild(bookmarkLink2);
+                //Thumb doesn't have bookmark info.  Add a fake bookmark link to link with the IQDB.
+                bookmarkLink = document.createElement("a");
+                bookmarkLink.className = "bookmark-count search-link";
+                if (anyBookmarks) {
+                    bookmarkLink.className += " ui-tooltip";
+                    bookmarkLink.setAttribute("data-tooltip", "0 bookmarks");
+                }
+                //Append IQDB links inside dummy div
+                dummydiv.appendChild(bookmarkLink);
+                dummydiv.appendChild(bookmarkLink2);
                 }
             }
             debuglog("Bookmark count:", bookmarkCount);
@@ -308,34 +338,20 @@ function processThumbs(target) {
         thumbList = [],
         launchAsyncThumbs = false;
 
-    //Combine the results over all targets to minimize queries by source search
-    for (let i = 0; i < target.length; i++) {
-        //Take care not to match on profile images, like those shown in the "Following" box on user profiles...
-
-        var xSearchA = document.evaluate("descendant-or-self::li/a[contains(@href,'mode=medium')]//img[not(@pisas)] | " +
-            "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@class,'js-lazyload') and not(@pisas)] |" +
-            "descendant-or-self::li[@class='image-item']/a//img[not(@pisas)] | " +
-            "descendant-or-self::section/a[contains(@href,'mode=medium')]//img[not(@pisas)] | " + //rankings
-            "descendant-or-self::div/a[contains(@href,'mode=medium')]//img[not(@pisas)] | " +
-            "descendant-or-self::div[@class='works_display']/a//img[not(@pisas)] | " +
-            "descendant-or-self::div[@class='works_display']/div/img[not(@pisas)] | " +
-            "descendant-or-self::div[@role='presentation']/a/img[not(@pisas)] | " +
-            "descendant-or-self::li/a[contains(@class,'gtm-thumbnail-link')]/div[not(@pisas)] | " +
-            "descendant-or-self::div[@class='works_display']//a[contains(@href,'mode=ugoira_view') and not(@pisas)] |" + //ugoira 'full size' icon
-            "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[not(@pisas)]",
-            target[i], null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-
-        for (let j = 0; j < xSearchA.snapshotLength; j++) {
-            (thumbSearch[thumbSearch.length] = xSearchA.snapshotItem(j)).setAttribute("pisas", "done");
+    for (let i = 0; i < pageselectors.length; i++) {
+        if (location.href.match(pageselectors[i].regex)) {
+            var xSearch = document.evaluate(pageselectors[i].selectors.map((index)=>{return xsearchselectors[index]}).join(' | '),document,null,XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,null);
+            for (let j = 0; j < xSearch.snapshotLength; j++) {
+                thumbSearch.push(xSearch.snapshotItem(j));
+                xSearch.snapshotItem(j).setAttribute("pisas", "done");
+            }
+            break;
         }
-    }
-    //Don't know why the above is not picking this out, but it's not picking this up with the mutation observers
-    var xSearchB = document.evaluate("descendant-or-self::div[@role='presentation']/a/img[not(@pisas)]", document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-    for (let j = 0; j < xSearchB.snapshotLength; j++) {
-        (thumbSearch[thumbSearch.length] = xSearchB.snapshotItem(j)).setAttribute("pisas", "done");
     }
     if (thumbSearch.length === 0) {
         return;
+    } else {
+        debuglog(thumbSearch);
     }
     for (let i = 0; i < thumbSearch.length; i++) {
         var thumbCont, thumbPage = null,
@@ -343,9 +359,9 @@ function processThumbs(target) {
         for (thumbCont = thumbImg.parentNode; !thumbCont.classList.contains("works_display"); thumbCont = thumbCont.parentNode) {
             if (thumbCont.tagName == "A") {
                 thumbPage = thumbCont;
-                if (location.pathname.includes("/search.php") || location.pathname.includes("/discovery") || location.pathname.includes("/bookmark_new_illust.php")) {
+                if (["/search.php","/discovery","/bookmark_new_illust.php"].includes(location.pathname)) {
                     thumbCont = thumbPage.parentNode.parentNode.parentNode;
-                } else if (location.pathname.includes("/member_illust.php") && location.search.search('/?mode=medium') > 0 && thumbImg.tagName == "IMG") {
+                } else if (location.href.match(/\/member_illust\.php\?mode=medium/) && thumbImg.tagName == "IMG") {
                     thumbCont = thumbPage.parentNode.parentNode;
                 } else {
                     thumbCont = thumbPage.parentNode;
@@ -358,27 +374,29 @@ function processThumbs(target) {
             bookmarkLink = thumbCont.querySelector("a[href*='bookmark_detail.php']");
         var bookmarkLink2;
         var sourceContainer = thumbCont;
-        var launchAsyncThumbs = false;
 
-        if ($(".pisas-dummydiv", thumbCont).length > 0) {
+        if ($(".pisas-dummydiv",thumbCont).length > 0) {
             debuglog("Already processed!");
             continue;
         }
         if (thumbImg.tagName == "IMG") {
             //Disable lazy loading
-            if (thumbImg.getAttribute("data-src"))
+            if (thumbImg.getAttribute("data-src")) {
                 thumbImg.src = thumbImg.getAttribute("data-src");
+            }
 
             //Skip generic restricted thumbs
-            if (thumbImg.src.indexOf("https://source.pixiv.net/") === 0)
+            if (thumbImg.src.indexOf("https://source.pixiv.net/") === 0) {
                 continue;
+            }
 
             //Skip special thumbs except on image pages (daily rankings on main page, ...)
-            if (location.search.indexOf("mode=") < 0 && thumbPage && (thumbImg.src.indexOf("_100.") > 0 || thumbPage.href.indexOf("_ranking") > 0))
+            if (location.search.indexOf("mode=") < 0 && thumbPage && (thumbImg.src.indexOf("_100.") > 0 || thumbPage.href.indexOf("_ranking") > 0)) {
                 continue;
+            }
         } else if (thumbImg.tagName == "DIV") {
             launchAsyncThumbs = true;
-            thumbImg.setAttribute("pisas", "working");
+            thumbImg.setAttribute("pisas","working");
             continue;
         }
 
@@ -408,7 +426,7 @@ function processThumbs(target) {
             thumbCont.appendChild(dummydiv);
             sourceContainer = dummydiv;
             if (iqdbURL && addIQDBSearch) {
-                //Thumb doesn't have bookmark info.  Add a fake bookmark link to link with the IQDB.
+            //Thumb doesn't have bookmark info.  Add a fake bookmark link to link with the IQDB.
                 bookmarkLink = document.createElement("a");
                 bookmarkLink.className = "bookmark-count search-link";
                 if (anyBookmarks) {
@@ -426,13 +444,14 @@ function processThumbs(target) {
                 thumb: thumbCont,
                 favcount: bookmarkCount
             });
-            if (bookmarkCount < minFavs)
+            if (bookmarkCount < minFavs) {
                 thumbCont.style.display = "none";
+            }
         }
 
         if (iqdbURL && addIQDBSearch) {
             bookmarkLink.href = iqdbURL + thumbImg.src + (thumbPage ? "&fullimage=" + thumbPage.href : "");
-            bookmarkLink.innerHTML = "(Q)" + (bookmarkCount == 0 ? "" : ':' + bookmarkCount.toString());
+            bookmarkLink.innerHTML = "(Q)"+(bookmarkCount==0?"":':'+bookmarkCount.toString());
             bookmarkLink2.href = sauceURL + thumbImg.src + (thumbPage ? "&fullimage=" + thumbPage.href : "");
             bookmarkLink2.innerHTML = "(S)";
         }
@@ -477,14 +496,20 @@ function tokenizePixivURL(url) {
         matcher = url.match(/(\d+\/\d+\/\d+\/\d+\/\d+\/\d+)\/(\d+)(?:_big)?(?:_\w*\d*)?[^\/]+$/);
     }
     // handles older pixiv URLs (multiple)
-    if (!matcher) matcher = url.match(/([a-z0-9]+)\/(\d+)(?:_big)?_p(\d+)(?:_\w*\d*)?[^\/]+$/);
+    if (!matcher) {
+        matcher = url.match(/([a-z0-9]+)\/(\d+)(?:_big)?_p(\d+)(?:_\w*\d*)?[^\/]+$/);
+    }
     // handles older pixiv URLs (single)
     if (!matcher) {
         matcher = url.match(/([a-z0-9]+)\/(\d+)(?:_\w*\d*)?[^\/]+$/);
     }
     // handles direct HTML...
-    if (!matcher) matcher = url.match(/illust_id=(\d+)/);
-    if (matcher) matcher[3] = matcher[3] || 0;
+    if (!matcher) {
+        matcher = url.match(/illust_id=(\d+)/);
+    }
+    if (matcher) {
+        matcher[3] = matcher[3] || 0;
+    }
     return matcher ? matcher : [url, "", "", ""]; // this should never be false, *hopefully*
 }
 
@@ -495,8 +520,9 @@ function tokenizePixivURL(url) {
 function retrieveOGImageURL() {
     let metas = document.getElementsByTagName("meta");
     for (let i = 0; i < metas.length; i++) {
-        if (metas[i].getAttribute("property") === "og:image")
+        if (metas[i].getAttribute("property") === "og:image") {
             return metas[i].getAttribute("content");
+        }
     }
 }
 
@@ -508,8 +534,9 @@ function sourceSearch(thumbList, attempt, page) {
         attempt = page = 1;
 
         for (let i = 0; i < thumbList.length; i++) {
-            if (!thumbList[i].status)
+            if (!thumbList[i].status) {
                 thumbList[i].status = thumbList[i].link.parentNode.appendChild(document.createElement("span"));
+            }
             thumbList[i].link.textContent = "Searching...";
             thumbList[i].posts = [];
         }
@@ -519,16 +546,18 @@ function sourceSearch(thumbList, attempt, page) {
         //Too many failures (or Downbooru); give up. :(
         for (let i = 0; i < thumbList.length; i++) {
             thumbList[i].status.style.display = "none";
-            if (thumbList[i].link.textContent[0] != '(')
+            if (thumbList[i].link.textContent[0] != '(') {
                 thumbList[i].link.textContent = "(error)";
+            }
             thumbList[i].link.setAttribute("style", "color:blue; font-weight: bold;");
         }
         return;
     }
 
     //Is there actually anything to process?
-    if (thumbList.length === 0)
+    if (thumbList.length === 0) {
         return;
+    }
 
     //Retry this call if timeout
     var retry = (function (a, b, c) {
@@ -543,8 +572,9 @@ function sourceSearch(thumbList, attempt, page) {
     var idList = [];
     for (let i = 0; i < thumbList.length; i++) {
         thumbList[i].status.textContent = " [" + attempt + "]";
-        if (idList.indexOf(thumbList[i].pixiv_id) < 0)
+        if (idList.indexOf(thumbList[i].pixiv_id) < 0) {
             idList.push(thumbList[i].pixiv_id);
+        }
     }
 
     GM_xmlhttpRequest({
@@ -557,34 +587,36 @@ function sourceSearch(thumbList, attempt, page) {
             var result = false,
                 status = null;
 
-            if (/^ *$/.test(responseDetails.responseText))
+            if (/^ *$/.test(responseDetails.responseText)) {
                 status = "(error)"; //No content
-            else if (responseDetails.responseText.indexOf("<title>Downbooru</title>") > 0) {
+            } else if (responseDetails.responseText.indexOf("<title>Downbooru</title>") > 0) {
                 addSourceSearch = maxAttempts = 0; //Give up
                 status = "(Downbooru)";
-            } else if (responseDetails.responseText.indexOf("<title>Failbooru</title>") > 0)
+            } else if (responseDetails.responseText.indexOf("<title>Failbooru</title>") > 0) {
                 status = "(Failbooru)";
-            else try {
-                result = JSON.parse(responseDetails.responseText);
-                if (result.success !== false)
-                    status = "Searching...";
-                else {
-                    status = "(" + (result.message || "error") + ")";
-                    addSourceSearch = maxAttempts = 0; //Give up
+            } else {
+                try {
+                    result = JSON.parse(responseDetails.responseText);
+                    if (result.success !== false) {
+                        status = "Searching...";
+                    } else {
+                        status = "(" + (result.message || "error") + ")";
+                        addSourceSearch = maxAttempts = 0; //Give up
+                        result = false;
+                    }
+                } catch (err) {
                     result = false;
+                    status = "(parse error)";
                 }
             }
-            catch (err) {
-                result = false;
-                status = "(parse error)";
+            //Update thumbnail messages
+            for (let i = 0; i < thumbList.length; i++) {
+                thumbList[i].link.textContent = status;
             }
 
-            //Update thumbnail messages
-            for (let i = 0; i < thumbList.length; i++)
-                thumbList[i].link.textContent = status;
-
-            if (result === false)
+            if (result === false) {
                 return retry(); //Hit an error; try again?
+            }
 
             //predefining some functions for good measure
             var setStyleSingle = function (thumb) {
@@ -671,9 +703,9 @@ function sourceSearch(thumbList, attempt, page) {
                 }
             }
 
-            if (result.length === 100)
+            if (result.length === 100) {
                 sourceSearch(thumbList, attempt + 1, page + 1); //Max results returned, so fetch the next page
-            else
+            } else {
                 for (let i = 0; i < thumbList.length; i++) {
                     //No more results will be forthcoming; hide the status counter and set the links for the images without any posts
                     thumbList[i].status.style.display = "none";
@@ -682,6 +714,7 @@ function sourceSearch(thumbList, attempt, page) {
                         thumbList[i].link.setAttribute("style", styleSourceMissing);
                     }
                 }
+            }
         },
         onerror: retry,
         onabort: retry
