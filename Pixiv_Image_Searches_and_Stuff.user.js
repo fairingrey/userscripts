@@ -7,7 +7,7 @@
 // @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2018.10.27
+// @version      2018.10.28
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -40,7 +40,7 @@ const xsearchselectors = [
     "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@class,'js-lazyload') and not(@pisas)]",
     "descendant-or-self::div/a[contains(@href,'mode=medium')]//img[not(@pisas)]",
     "descendant-or-self::div[@role='presentation']/a/img[not(@pisas)]",
-    "descendant-or-self::div/a[contains(@href,'mode=medium')]/div/div[contains(@style,'background-image') and not(@pisas)]",
+    "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@style,'background-image') and not(@pisas)]",
     "descendant-or-self::div/a[contains(@class,'gtm-illust-recommend-thumbnail-link') and contains(@href,'mode=medium')]/div/div[contains(@style,'background-image') and not(@pisas)]",
     "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@class,'lazyloaded') and not(@pisas)]",
     "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@style,'background-image') and not(@pisas)]"
