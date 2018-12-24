@@ -7,7 +7,7 @@
 // @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2018.10.28
+// @version      2018.12.24
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -351,7 +351,7 @@ function processThumbs(target) {
     if (thumbSearch.length === 0) {
         return;
     } else {
-        debuglog(thumbSearch);
+        debuglog("Images found:",thumbSearch);
     }
     for (let i = 0; i < thumbSearch.length; i++) {
         var thumbCont, thumbPage = null,
@@ -369,7 +369,7 @@ function processThumbs(target) {
                 break;
             }
         }
-        thumbCont.style.marginBottom = "1em";
+        thumbCont.style.marginBottom = "3em";
         var bookmarkCount = 0,
             bookmarkLink = thumbCont.querySelector("a[href*='bookmark_detail.php']");
         var bookmarkLink2;
