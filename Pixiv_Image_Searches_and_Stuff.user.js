@@ -6,8 +6,9 @@
 // @grant        GM_setValue
 // @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
+// @downloadURL  https://github.com/fairingrey/userscripts/raw/master/Pixiv_Image_Searches_and_Stuff.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2018.12.24
+// @version      2018.12.26
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -18,7 +19,7 @@ var sauceURL = "http://saucenao.com/search.php?db=999&url=";
 var addIQDBSearch = true; //IQDB search button
 var addSourceSearch = true; //Danbooru post search (looks for matching pixiv IDs); **Requires GM_xmlhttpRequest**
 var ignoreMismatch = false; //ignores mismatch highlighting
-var ignoreBadRevision = false; //ignores alternate highlighting of source mismatch tagged "bad_revision"
+var ignoreBadRevision = false; //ignores alternate highlighting of source mismatch tagged "has_bad_revision"
 var hidePopularSection = true; //Hides the popular section that can get in the way due to this script
 var debugConsole = false; //Enables program feedback through the development console
 
@@ -355,7 +356,8 @@ function processThumbs(target) {
     }
     for (let i = 0; i < thumbSearch.length; i++) {
         var thumbCont, thumbPage = null,
-            thumbImg = thumbSearch[i];
+            thumbImg = thumbSearch[i],
+            multi_image = false;
         for (thumbCont = thumbImg.parentNode; !thumbCont.classList.contains("works_display"); thumbCont = thumbCont.parentNode) {
             if (thumbCont.tagName == "A") {
                 thumbPage = thumbCont;
@@ -363,13 +365,25 @@ function processThumbs(target) {
                     thumbCont = thumbPage.parentNode.parentNode.parentNode;
                 } else if (location.href.match(/\/member_illust\.php\?mode=medium/) && thumbImg.tagName == "IMG") {
                     thumbCont = thumbPage.parentNode.parentNode;
+                    let figureCont = thumbCont;
+                    do {
+                        if (figureCont.tagName === "FIGURE") {
+                            let pageLinks = figureCont.querySelectorAll('a[rel="noopener"][href*="member_illust"]');
+                            if (pageLinks.length > 1) {
+                                pageLinks[1].style.paddingTop = 0;
+                                multi_image = true;
+                            }
+                            break;
+                        }
+                        figureCont = figureCont.parentElement;
+                    } while (figureCont !== null);
                 } else {
                     thumbCont = thumbPage.parentNode;
                 }
                 break;
             }
         }
-        thumbCont.style.marginBottom = "3em";
+        thumbCont.style.marginBottom = (multi_image ? "3em" : "1em");
         var bookmarkCount = 0,
             bookmarkLink = thumbCont.querySelector("a[href*='bookmark_detail.php']");
         var bookmarkLink2;
@@ -676,7 +690,7 @@ function sourceSearch(thumbList, attempt, page) {
                         thumbList[i].posts.push({
                             "id": result[j].id,
                             "src": result[j].source,
-                            "isBadRevision": result[j].tag_string.split(" ").includes("bad_revision")
+                            "isBadRevision": result[j].tag_string.split(" ").includes("has_bad_revision")
                         });
                     }
                 }
