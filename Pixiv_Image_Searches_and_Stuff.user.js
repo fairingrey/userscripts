@@ -307,9 +307,9 @@ async function asyncProcessThumbs() {
             }
 
             if (iqdbURL && addIQDBSearch) {
-                bookmarkLink.href = iqdbURL + thumbImg.src + (thumbPage ? "&fullimage=" + thumbPage.href : "");
+                bookmarkLink.href = iqdbURL + thumbImg.src.replace(/\/c\/250x250_80_a2/,"").replace(/square1200/,"master1200") + (thumbPage ? "&fullimage=" + thumbPage.href : "");
                 bookmarkLink.innerHTML = (bookmarkCount > 0 ? "(Q):" + bookmarkCount : "(Q)");
-                bookmarkLink2.href = sauceURL + thumbImg.src + (thumbPage ? "&fullimage=" + thumbPage.href : "");
+                bookmarkLink2.href = sauceURL + thumbImg.src.replace(/\/c\/250x250_80_a2/,"").replace(/square1200/,"master1200") + (thumbPage ? "&fullimage=" + thumbPage.href : "");
                 bookmarkLink2.innerHTML = "(S)";
             }
 
@@ -467,9 +467,9 @@ function processThumbs(target) {
         }
 
         if (iqdbURL && addIQDBSearch) {
-            bookmarkLink.href = iqdbURL + thumbImg.src + (thumbPage ? "&fullimage=" + thumbPage.href : "");
+            bookmarkLink.href = iqdbURL + thumbImg.src.replace(/\/c\/250x250_80_a2/,"").replace(/square1200/,"master1200") + (thumbPage ? "&fullimage=" + thumbPage.href : "");
             bookmarkLink.innerHTML = "(Q)"+(bookmarkCount==0?"":':'+bookmarkCount.toString());
-            bookmarkLink2.href = sauceURL + thumbImg.src + (thumbPage ? "&fullimage=" + thumbPage.href : "");
+            bookmarkLink2.href = sauceURL + thumbImg.src.replace(/\/c\/250x250_80_a2/,"").replace(/square1200/,"master1200") + (thumbPage ? "&fullimage=" + thumbPage.href : "");
             bookmarkLink2.innerHTML = "(S)";
         }
 
