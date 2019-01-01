@@ -8,7 +8,7 @@
 // @grant        GM_xmlhttpRequest
 // @downloadURL  https://github.com/fairingrey/userscripts/raw/master/Pixiv_Image_Searches_and_Stuff.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2018.12.26
+// @version      2019.01.01
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -71,6 +71,9 @@ const pageselectors = [
         selectors: [0,5]
     },{
         regex: /\/stacc/,
+        selectors: [1]
+    },{
+        regex: /\/ranking\.php/,
         selectors: [1]
     }
 ];
