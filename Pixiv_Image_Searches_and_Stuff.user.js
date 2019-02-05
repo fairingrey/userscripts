@@ -8,7 +8,7 @@
 // @grant        GM_xmlhttpRequest
 // @downloadURL  https://github.com/fairingrey/userscripts/raw/master/Pixiv_Image_Searches_and_Stuff.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2019.01.01
+// @version      2019.02.04
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -689,7 +689,7 @@ function sourceSearch(thumbList, attempt, page) {
                 //Collect the IDs of every post with the same pixiv_id/page as the pixiv image
                 for (let j = 0; j < result.length; j++) {
                     if (thumbList[i].pixiv_id == result[j].pixiv_id && thumbList[i].posts.indexOf(result[j].id) < 0 && (thumbList[i].page < 0 || thumbList[i].page == pixivPageNumber(result[j].source))) {
-                        thumbList[i].link.title = result[j].tag_string + " user:" + result[j].uploader_name + " rating:" + result[j].rating + " score:" + result[j].score;
+                        thumbList[i].link.title = result[j].tag_string + " rating:" + result[j].rating + " score:" + result[j].score;
                         thumbList[i].posts.push({
                             "id": result[j].id,
                             "src": result[j].source,
