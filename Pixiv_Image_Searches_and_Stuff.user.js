@@ -8,7 +8,7 @@
 // @grant        GM_xmlhttpRequest
 // @downloadURL  https://github.com/fairingrey/userscripts/raw/master/Pixiv_Image_Searches_and_Stuff.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2019.02.04
+// @version      2019.03.13
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -50,13 +50,13 @@ const xsearchselectors = [
 const pageselectors = [
     {
         regex: /\/member\.php/,
-        selectors: [3]
+        selectors: [1]
     },{
         regex: /\/member_illust\.php\?id=/,
-        selectors: [3]
+        selectors: [1]
     },{
         regex: /\/bookmark\.php/,
-        selectors: [3]
+        selectors: [1]
     },{
         regex: /\/member_illust\.php\?mode=medium/,
         selectors: [2,4]
