@@ -8,7 +8,7 @@
 // @grant        GM_xmlhttpRequest
 // @downloadURL  https://github.com/fairingrey/userscripts/raw/master/Pixiv_Image_Searches_and_Stuff.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2019.03.13
+// @version      2019.04.09
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -275,7 +275,7 @@ async function asyncProcessThumbs() {
                 }
             } else {
                 //Dummy div to force new line when needed
-               var dummydiv = document.createElement("div");
+                var dummydiv = document.createElement("div");
                 dummydiv.style.justifyContent = 'center';
                 dummydiv.style.display = 'flex';
                 dummydiv.className = 'pisas-dummydiv';
@@ -439,6 +439,7 @@ function processThumbs(target) {
             var dummydiv = document.createElement("div");
             dummydiv.style.justifyContent = 'center';
             dummydiv.style.display = 'flex';
+            dummydiv.style.paddingBottom = "2em";
             dummydiv.className = 'pisas-dummydiv';
             thumbCont.appendChild(dummydiv);
             sourceContainer = dummydiv;
@@ -479,7 +480,7 @@ function processThumbs(target) {
                 link: sourceContainer.appendChild(document.createElement("a")),
                 pixiv_id: pixivIllustID(thumbImg.src || thumbImg.href),
                 src: thumbImg.src || retrieveOGImageURL(),
-                page: -1
+                page: ($(".gtm-medium-work-expanded-view").length ? pixivPageNumber(thumbImg.src || thumbImg.href) : -1)
             });
         }
     }
