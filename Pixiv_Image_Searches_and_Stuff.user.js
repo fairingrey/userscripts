@@ -8,7 +8,7 @@
 // @grant        GM_xmlhttpRequest
 // @downloadURL  https://github.com/fairingrey/userscripts/raw/master/Pixiv_Image_Searches_and_Stuff.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2019.04.09
+// @version      2019.05.05
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -44,7 +44,8 @@ const xsearchselectors = [
     "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@style,'background-image') and not(@pisas)]",
     "descendant-or-self::div/a[contains(@class,'gtm-illust-recommend-thumbnail-link') and contains(@href,'mode=medium')]/div/div[contains(@style,'background-image') and not(@pisas)]",
     "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@class,'lazyloaded') and not(@pisas)]",
-    "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@style,'background-image') and not(@pisas)]"
+    "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@style,'background-image') and not(@pisas)]",
+    "descendant-or-self::div/a[contains(@class,'gtm-illust-recommend-thumbnail-link') and contains(@href,'mode=medium')]//img[not(@pisas)]"
 ];
 
 const pageselectors = [
@@ -59,7 +60,7 @@ const pageselectors = [
         selectors: [1]
     },{
         regex: /\/member_illust\.php\?mode=medium/,
-        selectors: [2,4]
+        selectors: [2,7]
     },{
         regex: /\/search\.php\?.*?word=/,
         selectors: [0,5,6]
@@ -367,6 +368,7 @@ function processThumbs(target) {
                 if (["/search.php","/discovery","/bookmark_new_illust.php"].includes(location.pathname)) {
                     thumbCont = thumbPage.parentNode.parentNode.parentNode;
                 } else if (location.href.match(/\/member_illust\.php\?mode=medium/) && thumbImg.tagName == "IMG") {
+                    $(thumbImg).closest("figure").find("button:contains('See all'):not([pisas])").css('padding','0').attr('pisas','done');
                     thumbCont = thumbPage.parentNode.parentNode;
                     let figureCont = thumbCont;
                     do {
@@ -416,7 +418,6 @@ function processThumbs(target) {
             thumbImg.setAttribute("pisas","working");
             continue;
         }
-
         if (sauceURL && addIQDBSearch) {
             //Thumb doesn't have bookmark info.  Add a fake bookmark link to link with the IQDB.
             bookmarkLink2 = document.createElement("a");
