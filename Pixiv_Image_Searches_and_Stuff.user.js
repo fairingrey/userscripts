@@ -8,7 +8,7 @@
 // @grant        GM_xmlhttpRequest
 // @downloadURL  https://github.com/fairingrey/userscripts/raw/master/Pixiv_Image_Searches_and_Stuff.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2019.05.05
+// @version      2019.09.24
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -45,37 +45,40 @@ const xsearchselectors = [
     "descendant-or-self::div/a[contains(@class,'gtm-illust-recommend-thumbnail-link') and contains(@href,'mode=medium')]/div/div[contains(@style,'background-image') and not(@pisas)]",
     "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@class,'lazyloaded') and not(@pisas)]",
     "descendant-or-self::div/a[contains(@href,'mode=medium')]/div[contains(@style,'background-image') and not(@pisas)]",
-    "descendant-or-self::div/a[contains(@class,'gtm-illust-recommend-thumbnail-link') and contains(@href,'mode=medium')]//img[not(@pisas)]"
+    "descendant-or-self::div/a[contains(@class,'gtm-illust-recommend-thumbnail-link') and contains(@href,'mode=medium')]//img[not(@pisas)]",
+    "descendant-or-self::div/a[contains(@href,'artworks')]/div[contains(@style,'background-image') and not(@pisas)]",
+    "descendant-or-self::div/a[contains(@href,'artworks')]/div/img[not(@pisas)]",
+    "descendant-or-self::div/a[contains(@class,'gtm-illust-recommend-thumbnail-link') and contains(@href,'artworks')]//img[not(@pisas)]",
 ];
 
 const pageselectors = [
     {
         regex: /\/member\.php/,
-        selectors: [1]
+        selectors: [9]
     },{
         regex: /\/member_illust\.php\?id=/,
-        selectors: [1]
+        selectors: [9]
     },{
         regex: /\/bookmark\.php/,
-        selectors: [1]
+        selectors: [9]
     },{
-        regex: /\/member_illust\.php\?mode=medium/,
-        selectors: [2,7]
+        regex: /\/(?:\w+\/)?artworks/,
+        selectors: [2,10]
     },{
         regex: /\/search\.php\?.*?word=/,
-        selectors: [0,5,6]
+        selectors: [8]
     },{
         regex: /\/bookmark_new_illust\.php/,
-        selectors: [0,5,6]
+        selectors: [8]
     },{
         regex: /\/discovery/,
-        selectors: [0,5]
+        selectors: [8]
     },{
         regex: /\/stacc/,
         selectors: [1]
     },{
         regex: /\/ranking\.php/,
-        selectors: [1]
+        selectors: [9]
     }
 ];
 
@@ -367,8 +370,8 @@ function processThumbs(target) {
                 thumbPage = thumbCont;
                 if (["/search.php","/discovery","/bookmark_new_illust.php"].includes(location.pathname)) {
                     thumbCont = thumbPage.parentNode.parentNode.parentNode;
-                } else if (location.href.match(/\/member_illust\.php\?mode=medium/) && thumbImg.tagName == "IMG") {
-                    $(thumbImg).closest("figure").find("button:contains('See all'):not([pisas])").css('padding','0').attr('pisas','done');
+                } else if (location.href.match(/\/(?:\w+\/)?artworks/) && thumbImg.tagName == "IMG") {
+                    $(thumbImg).closest("figure").parent().find("button:contains('See all'):not([pisas])").css('padding','0').attr('pisas','done');
                     thumbCont = thumbPage.parentNode.parentNode;
                     let figureCont = thumbCont;
                     do {
@@ -493,7 +496,7 @@ function processThumbs(target) {
 }
 
 function pixivIllustID(url) {
-    var matcher = url.match(/\/(\d+)(_|\.)[^\/]+$/) || url.match(/illust_id=(\d+)/);
+    var matcher = url.match(/\/(\d+)(_|\.)[^\/]+$/) || url.match(/illust_id=(\d+)/) || url.match(/\/artworks\/(\d+)/);
     return matcher && matcher[1];
 }
 
