@@ -8,7 +8,7 @@
 // @grant        GM_xmlhttpRequest
 // @downloadURL  https://github.com/fairingrey/userscripts/raw/master/Pixiv_Image_Searches_and_Stuff.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2019.09.24
+// @version      2019.11.25
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -49,36 +49,41 @@ const xsearchselectors = [
     "descendant-or-self::div/a[contains(@href,'artworks')]/div[contains(@style,'background-image') and not(@pisas)]",
     "descendant-or-self::div/a[contains(@href,'artworks')]/div/img[not(@pisas)]",
     "descendant-or-self::div/a[contains(@class,'gtm-illust-recommend-thumbnail-link') and contains(@href,'artworks')]//img[not(@pisas)]",
+    "descendant-or-self::section/ul/li//div/a[contains(@href,'artworks')]/div/img[not(@pisas)]",
+    "descendant-or-self::section/div/ul/li//div/a[contains(@href,'artworks')]/div/img[not(@pisas)]",
 ];
 
 const pageselectors = [
-    {
-        regex: /\/member\.php/,
+    {   //0
+        regex: /^\/member\.php/,
         selectors: [9]
-    },{
-        regex: /\/member_illust\.php\?id=/,
+    },{ //1
+        regex: /^\/member_illust\.php/,
         selectors: [9]
-    },{
-        regex: /\/bookmark\.php/,
+    },{ //2
+        regex: /^\/bookmark\.php/,
         selectors: [9]
-    },{
-        regex: /\/(?:\w+\/)?artworks/,
+    },{ //3
+        regex: /^\/(?:\w+\/)?artworks\//,
         selectors: [2,10]
-    },{
-        regex: /\/search\.php\?.*?word=/,
+    },{ //4
+        regex: /^\/search\.php/,
+        selectors: [12]
+    },{ //5
+        regex: /^\/bookmark_new_illust\.php/,
         selectors: [8]
-    },{
-        regex: /\/bookmark_new_illust\.php/,
+    },{ //6
+        regex: /^\/discovery/,
         selectors: [8]
-    },{
-        regex: /\/discovery/,
-        selectors: [8]
-    },{
-        regex: /\/stacc/,
+    },{ //7
+        regex: /^\/stacc/,
         selectors: [1]
-    },{
-        regex: /\/ranking\.php/,
+    },{ //8
+        regex: /^\/ranking\.php/,
         selectors: [9]
+    },{ //9
+        regex: /^\/(?:\w+\/)?tags\//,
+        selectors: [12]
     }
 ];
 
@@ -177,7 +182,7 @@ function sleep(ms) {
 }
 
 async function asyncProcessManga() {
-    debuglog("Starting image check...");
+    debuglog("asyncProcessManga: Starting image check...");
     while (true) {
         let timages = document.querySelectorAll(".item-container img");
         let isdone = true;
@@ -199,6 +204,7 @@ async function asyncProcessManga() {
 }
 
 function processManga() {
+    debuglog("processManga");
     var searchID = addSourceSearch && location.search.match(/illust_id=(\d+)/);
     if (searchID) {
         var thumbList = [],
@@ -230,6 +236,7 @@ function processManga() {
 }
 
 async function asyncProcessThumbs() {
+    debuglog("asyncProcessThumbs");
     GM_setValue('asyncProcessThumbs', true);
     debuglog("Starting async thumbs processing...");
     while (true) {
@@ -342,21 +349,27 @@ async function asyncProcessThumbs() {
 GM_setValue('asyncProcessThumbs', false);
 
 function processThumbs(target) {
+    debuglog("processThumbs");
     var thumbSearch = [],
         thumbList = [],
-        launchAsyncThumbs = false;
+        launchAsyncThumbs = false,
+        pagetype = -1;
 
     for (let i = 0; i < pageselectors.length; i++) {
-        if (location.href.match(pageselectors[i].regex)) {
+        if (location.pathname.match(pageselectors[i].regex)) {
             var xSearch = document.evaluate(pageselectors[i].selectors.map((index)=>{return xsearchselectors[index]}).join(' | '),document,null,XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,null);
             for (let j = 0; j < xSearch.snapshotLength; j++) {
                 thumbSearch.push(xSearch.snapshotItem(j));
                 xSearch.snapshotItem(j).setAttribute("pisas", "done");
             }
+            pagetype = i;
             break;
         }
     }
-    if (thumbSearch.length === 0) {
+    if (thumbSearch.length === 0 || pagetype === -1) {
+        if (pagetype === -1) {
+            debuglog("No page match!");
+        }
         return;
     } else {
         debuglog("Images found:",thumbSearch);
@@ -368,9 +381,11 @@ function processThumbs(target) {
         for (thumbCont = thumbImg.parentNode; !thumbCont.classList.contains("works_display"); thumbCont = thumbCont.parentNode) {
             if (thumbCont.tagName == "A") {
                 thumbPage = thumbCont;
-                if (["/search.php","/discovery","/bookmark_new_illust.php"].includes(location.pathname)) {
+                if ([2, 4, 6, 9].includes(pagetype)) {
                     thumbCont = thumbPage.parentNode.parentNode.parentNode;
-                } else if (location.href.match(/\/(?:\w+\/)?artworks/) && thumbImg.tagName == "IMG") {
+                } else if (pagetype === 8) {
+                    thumbCont = thumbPage.parentNode.parentNode;
+                } else if (pagetype === 3 && thumbImg.tagName == "IMG") {
                     $(thumbImg).closest("figure").parent().find("button:contains('See all'):not([pisas])").css('padding','0').attr('pisas','done');
                     thumbCont = thumbPage.parentNode.parentNode;
                     let figureCont = thumbCont;
