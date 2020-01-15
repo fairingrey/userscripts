@@ -8,7 +8,7 @@
 // @grant        GM_xmlhttpRequest
 // @downloadURL  https://github.com/fairingrey/userscripts/raw/master/Pixiv_Image_Searches_and_Stuff.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js
-// @version      2019.11.25
+// @version      2020.01.09
 // ==/UserScript==
 
 /* You must be logged into Danbooru (or your preferred site mirror) for all features to work! */
@@ -84,6 +84,9 @@ const pageselectors = [
     },{ //9
         regex: /^\/(?:\w+\/)?tags\//,
         selectors: [12]
+    },{ //10
+        regex: /^\/(?:\w+\/)?users\//,
+        selectors: [9]
     }
 ];
 
