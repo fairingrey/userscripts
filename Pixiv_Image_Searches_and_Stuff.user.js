@@ -351,12 +351,19 @@ async function asyncProcessThumbs() {
 }
 GM_setValue('asyncProcessThumbs', false);
 
+var saved_href = null;
+
 function processThumbs(target) {
     debuglog("processThumbs");
     var thumbSearch = [],
         thumbList = [],
         launchAsyncThumbs = false,
         pagetype = -1;
+
+    if (saved_href !== window.location.href) {
+        $(".pisas-dummydiv").remove();
+        saved_href = window.location.href;
+    }
 
     for (let i = 0; i < pageselectors.length; i++) {
         if (location.pathname.match(pageselectors[i].regex)) {
